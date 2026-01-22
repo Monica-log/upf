@@ -11,6 +11,9 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // URL de l'API - s'adapte au développement et production
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -34,7 +37,7 @@ const LoginPage: React.FC = () => {
       setSuccessMessage('');
 
       try {
-        const response = await fetch('http://localhost:5000/api/login', {
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
